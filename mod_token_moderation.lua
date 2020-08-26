@@ -21,11 +21,13 @@ module:hook("muc-room-created", function(event)
         local _handle_first_presence = room.handle_first_presence;
         -- Wrap presence handlers to set affiliations from token whenever a user joins
         room.handle_normal_presence = function(thisRoom, origin, stanza)
+                log('info', 'Normal presence')
                 local pres = _handle_normal_presence(thisRoom, origin, stanza);
                 setupAffiliation(thisRoom, origin, stanza);
                 return pres;
         end;
         room.handle_first_presence = function(thisRoom, origin, stanza)
+                log('info', 'First presence')
                 local pres = _handle_first_presence(thisRoom, origin, stanza);
                 setupAffiliation(thisRoom, origin, stanza);
                 return pres;
@@ -33,12 +35,25 @@ module:hook("muc-room-created", function(event)
         -- Wrap set affilaition to block anything but token setting owner (stop pesky auto-ownering)
         local _set_affiliation = room.set_affiliation;
         room.set_affiliation = function(room, actor, jid, affiliation, reason)
+                log('info', 'Set affiliation')
+                log('info', 'actor: ' .. actor)
+                log('info', 'jid: ' .. jid)
+                log('info', 'affiliation: ' .. affiliation)
+
+                local oldAffiliation = room:get_affiliation(jid)
+                if oldAffiliation == "member" then
+                        log('info', 'Current affialiation is: owner')
+                end
+
                 -- let this plugin do whatever it wants
                 if actor == "token_plugin" then
                         return _set_affiliation(room, true, jid, affiliation, reason)
                 -- noone else can assign owner (in order to block prosody/jisti's built in moderation functionality
                 elseif affiliation == "owner" then
                         return nil, "modify", "not-acceptable"
+                elseif affiliation == "grant_owner" then
+                        log('info', 'Custom owner promotion')
+                        return _set_affiliation(room, actor, jid, "owner", reason);
                 -- keep other affil stuff working as normal (hopefully, haven't needed to use/test any of it)
                 else
                         return _set_affiliation(room, actor, jid, affiliation, reason);
@@ -61,7 +76,7 @@ function setupAffiliation(room, origin, stanza)
                                 else
                                         room:set_affiliation("token_plugin", jid, "member");
                                 end;
-			end;
-		end;
-	end;
+                        end;
+                end;
+        end;
 end;
