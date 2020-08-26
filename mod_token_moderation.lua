@@ -70,11 +70,20 @@ function setupAffiliation(room, origin, stanza)
                                 local bodyB64 = origin.auth_token:sub(dotFirst + 1, dotFirst + dotSecond - 1);
                                 local body = json.decode(basexx.from_url64(bodyB64));
                                 local jid = jid_bare(stanza.attr.from);
+
+                                local currentAffiliation = room:get_affiliation(jid)
+
                                 -- If user is a moderator or an admin, set their affiliation to be an owner
                                 if body["moderator"] == true or is_admin(jid) then
+                                        log('info', 'Affiliation from token: owner')
                                         room:set_affiliation("token_plugin", jid, "owner");
                                 else
-                                        room:set_affiliation("token_plugin", jid, "member");
+                                        log('info', 'Affiliation from token: member')
+                                        if currentAffiliation == "owner" then
+                                                log('info', 'Current affialiation is owner, will not downgrade user.')
+                                        else
+                                                room:set_affiliation("token_plugin", jid, "member");
+                                        end;
                                 end;
                         end;
                 end;
